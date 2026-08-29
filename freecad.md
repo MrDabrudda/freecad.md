@@ -1,4 +1,4 @@
-# FreeCAD Python Scripting Rules
+# FreeCAD Python Scripting Rules 
 
 ## Self-Improvement & Rule Maintenance
 - Whenever a FreeCAD Python code execution fails via `freecad-mcp` due to an `ImportError`, `TypeError`, or invalid API syntax:
@@ -11,9 +11,13 @@
 - ALWAYS use string-based class names with `doc.addObject()`:
   - Body: `body = doc.addObject("PartDesign::Body", "Body")`
   - Sketch: `sketch = doc.addObject("Sketcher::SketchObject", "Sketch")`
-- `body.addObject()` accepts ONLY 1 argument (the object instance reference).
-- NEVER call `body.addObject("Type", "Name")` (will throw `TypeError: function takes exactly 1 argument (2 given)`).
-- ALWAYS create objects via `doc.addObject("Type", "Name")` first, then add them to the body using `body.addObject(obj)`.
+- ALWAYS create objects via `doc.addObject("Type", "Name")` first, then attach them to the body.
+- `body.addObject` is a Python METHOD, not a writable property or multi-argument constructor:
+  - CORRECT: `body.addObject(sketch)` (takes exactly 1 argument)
+  - FORBIDDEN: `body.addObject("Type", "Name")` (will throw `TypeError: function takes exactly 1 argument (2 given)`)
+  - FORBIDDEN: `body.addObject = sketch` (will throw `attribute 'addObject' is read-only`)
+  - FORBIDDEN: `body.Objects = [sketch]` (will throw `attribute 'Objects' does not exist`)
+- `body.addObjects([sketch])` requires a LIST argument `[...]`. Passing a single object without brackets (e.g., `body.addObjects(sketch)`) will throw `TypeError: type must be list`.
 
 ## Sketch Geometry
 - `sketch.addGeometry()` accepts ONLY a single `Part` geometry object.
@@ -22,16 +26,9 @@
 - ALWAYS wrap vector pairs inside `Part` segment objects:
   - Line: `sketch.addGeometry(Part.LineSegment(App.Vector(x1, y1, z1), App.Vector(x2, y2, z2)))`
   - Circle: `sketch.addGeometry(Part.Circle(App.Vector(x, y, z), App.Vector(0, 0, 1), radius))`
-
 - NEVER create zero-length geometry where start and end points are identical (e.g., `Part.LineSegment(v1, v1)` will throw `Error build geometry: Both points are equal` and crash the sketch solver).
-
-- NEVER generate zero-length geometry elements:
   - Line segments MUST have distinct start and end vectors (e.g., `Part.LineSegment(App.Vector(0,0,0), App.Vector(10,0,0))`).
   - Circles MUST have a positive, non-zero radius (e.g., `Part.Circle(App.Vector(x,y,z), App.Vector(0,0,1), 5.0)`).
-  - NEVER use `App.Vector(0,0,0)` for both endpoints of element `0`.
-
-- ALWAYS ensure all geometry elements have non-zero length upon creation. Verify that every Part.LineSegment instantiation has distinct coordinates for its start and end vectors.
-  - NEVER create zero-length geometry where start and end points are identical (e.g., `Part.LineSegment(v1, v1)` will throw `Error build geometry: Both points are equal` and crash the sketch solver).
 
 ## Constraints
 - `sketch.addConstraint()` accepts ONLY a single `Sketcher.Constraint` object.
@@ -43,7 +40,14 @@
 ## Sketch Verification & Inspection
 - An empty sketch will return `"Shape": {"error": "invalid shape: shape is invalid"}` and `"Geometry": []`.
 - A valid sketch payload must contain populated array elements inside `"Geometry"` and `"Constraints"`.
-- Always call `doc.recompute()` after adding geometry via `freecad-mcp` to clear the shape error state.
+- ALWAYS call `doc.recompute()` after adding geometry via `freecad-mcp` to clear the shape error state (do NOT use `App.ActiveDocument.recompute()` if `doc` is defined).
+- `sketch.clear()` does NOT exist in the FreeCAD Python API.
+  - To reset a sketch, ALWAYS use:
+    ```python
+    sketch.Geometry = []
+    sketch.Constraints = []
+    ```
+  - Or use `sketch.deleteAllGeometry()`.
 
 ## Execution Template
 ```python
