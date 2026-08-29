@@ -12,6 +12,11 @@
 - **Inspection & Analysis:** `get_view`, `get_rpc_status`, `run_fem_analysis`
 - *Note:* Tools returning screenshots accept optional `include_screenshot` (default `true`) and `view_name` (default `"Isometric"`) parameters.
 
+## Code Formatting & Syntax Rules
+- STRICTLY format Python code with consistent 4-space indentation across all lines.
+- NEVER leave random leading spaces on variable assignments (e.g., ` g2 = ...` will cause `IndentationError: unexpected indent`).
+- Always check that consecutive statements in the root scope or within blocks align flush to the active indentation level before passing to `execute_code`.
+
 ## RPC & Execution Safety Protocol
 - ALWAYS use `get_rpc_status` if a GUI-thread operation fails, hangs, or returns `GUI_DISPATCH_STUCK`.
 - NEVER force-cancel stuck operations directly in script text; rely on `get_rpc_status` to identify hanging tasks.
@@ -31,16 +36,16 @@
 - ALWAYS create objects on `doc` first using `doc.addObject("Type", "Name")`, then attach them to the body using `body.addObject(sketch)`.
 
 ## PartDesign::Body Group & Property Rules
-- NEVER assign strings, dicts, or raw text names directly to `body.Group`. 
-  - `body.Group` accepts ONLY a list of valid `App.DocumentObject` instances (or `None`).
-  - FORBIDDEN: `body.Group = [{'name': 'Sketch'}]` or `body.Group = ['Sketch']` (will throw `Property 'Group' assignment error: Type must be App.DocumentObject or None`).
-  - CORRECT: `body.Group = [sketch]` or `body.addObject(sketch)`.
+- NEVER assign dictionaries, string names, or text representations to `body.Group`.
+  - `body.Group` strictly expects a Python list of `App.DocumentObject` instances.
+  - FORBIDDEN: `body.Group = [{'name': 'TopView'}]` or `body.Group = [{'TopView': sketch}]` (causes `Property 'Group' assignment error: Type must be App.DocumentObject or None, not dict`).
+  - FORBIDDEN: `body.Group = ['TopView']` or `body.Group = 'TopView'` (causes `Property 'Group' assignment error: Type must be App.DocumentObject or None, not str`).
+  - CORRECT: `body.addObject(sketch)` or `body.Group = [sketch]` (where `sketch` is the object variable returned by `doc.addObject` or `doc.getObject`).
 - NEVER attempt to assign to `body.Objects` or `body.ObjectList`.
-  - `PartDesign::Body` objects do NOT possess `Objects` or `ObjectList` attributes (will throw `AttributeError: 'PartDesign.Body' object has no attribute 'Objects'`).
+  - `PartDesign::Body` objects do NOT possess `Objects` or `ObjectList` attributes.
 - `body.addObject` is a Python METHOD, not a writable property or multi-argument constructor:
   - CORRECT: `body.addObject(sketch)` (takes exactly 1 argument)
-  - FORBIDDEN: `body.addObject("Type", "Name")` (will throw `TypeError: function takes exactly 1 argument (2 given)`)
-  - FORBIDDEN: `body.addObject = sketch` or `body.addObjects = ...` (will throw `attribute is read-only`)
+  - FORBIDDEN: `body.addObject("Type", "Name")` (will throw `TypeError: function takes exactly 1 argument (2 given)`).
 
 ## Headless & GUI Constraints
 - NEVER access GUI properties or view attributes on document objects (e.g., `sketch.SketcherGui` will throw `AttributeError`).
@@ -101,7 +106,7 @@ import Sketcher
 doc = App.ActiveDocument or App.newDocument("MicroProbe")
 body = doc.getObject("Body") or doc.addObject("PartDesign::Body", "Body")
 
-# Create sketch on document, then add to body
+# Create sketch on document, then attach to body using the object reference
 sketch = doc.getObject("TopView") or doc.addObject("Sketcher::SketchObject", "TopView")
 if sketch not in body.Group:
     body.addObject(sketch)
@@ -110,8 +115,8 @@ if sketch not in body.Group:
 sketch.Geometry = []
 sketch.Constraints = []
 
-# Add 4 line segments for a rectangle (ensure start and end vectors are non-equal)
-width, height = 10.965, 7.8
+# Add 4 line segments for a rectangle (ensure clean 0-indentation at root)
+width, height = 21.93, 15.60
 p1 = App.Vector(0, 0, 0)
 p2 = App.Vector(width, 0, 0)
 p3 = App.Vector(width, height, 0)
@@ -122,7 +127,7 @@ g2 = sketch.addGeometry(Part.LineSegment(p2, p3)) # Geo 1
 g3 = sketch.addGeometry(Part.LineSegment(p3, p4)) # Geo 2
 g4 = sketch.addGeometry(Part.LineSegment(p4, p1)) # Geo 3
 
-# Apply valid constraints without malformed index parameters
+# Apply constraints using object indices and valid PointPos values
 sketch.addConstraint(Sketcher.Constraint("Coincident", 0, 2, 1, 1))
 sketch.addConstraint(Sketcher.Constraint("Coincident", 1, 2, 2, 1))
 sketch.addConstraint(Sketcher.Constraint("Coincident", 2, 2, 3, 1))
