@@ -6,6 +6,19 @@
   2. Open and update `.kilo/rules/freecad.md`.
   3. Append the newly discovered syntax constraint under the appropriate section with a code example.
 
+## Available MCP Tools Context
+- **Document & Objects:** `create_document`, `create_object`, `edit_object`, `delete_object`, `get_objects`, `get_object`
+- **Execution & Library:** `execute_code`, `insert_part_from_library`, `get_parts_list`
+- **Inspection & Analysis:** `get_view`, `get_rpc_status`, `run_fem_analysis`
+- *Note:* Tools returning screenshots accept optional `include_screenshot` (default `true`) and `view_name` (default `"Isometric"`) parameters.
+
+## RPC & Execution Safety Protocol
+- ALWAYS use `get_rpc_status` if a GUI-thread operation fails, hangs, or returns `GUI_DISPATCH_STUCK`.
+- NEVER force-cancel stuck operations directly in script text; rely on `get_rpc_status` to identify hanging tasks.
+- If an `execute_code` exception occurs when creating custom `FeaturePython` objects:
+  - ALWAYS inspect the created object before mutating or deleting it.
+  - NEVER touch or delete a feature object whose required `Proxy` was not properly initialized, as it will wedge the FreeCAD GUI thread.
+
 ## Object Instantiation & Imports
 - NEVER import `Body` or `Sketch` directly from `PartDesign` (e.g., `from PartDesign import Body` will fail).
 - ALWAYS guard document and body retrieval to prevent `NoneType` attribute errors when running over RPC:
@@ -97,4 +110,4 @@ sketch.addGeometry(Part.LineSegment(p4, p1))
 # Add circle geometry (must use 3D normal vector)
 sketch.addGeometry(Part.Circle(App.Vector(2.5, 3.9, 0), App.Vector(0, 0, 1), 2.7))
 
-doc.recompute()****
+doc.recompute()
