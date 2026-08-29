@@ -118,6 +118,61 @@ import Sketcher
 doc = App.ActiveDocument or App.newDocument("MicroProbe")
 body = doc.getObject("Body") or doc.addObject("PartDesign::Body", "Body")
 
+# Create sketch object
+sketch = doc.getObject("TopView") or doc.addObject(
+    "Sketcher::SketchObject", "TopView"
+)
+
+
+# FAIL-SAFE WRAPPER: Intercepts strings, lists, or objects and handles them safely
+def safe_add_to_body(target_body, item):
+  if isinstance(item, str):
+    obj = target_body.Document.getObject(item)
+    if obj and obj not in target_body.Group:
+      target_body.addObject(obj)
+  elif isinstance(item, list):
+    for sub_item in item:
+      safe_add_to_body(target_body, sub_item)
+  elif hasattr(item, "TypeId") and item not in target_body.Group:
+    target_body.addObject(item)
+
+
+# Even if the LLM tries to pass a string or list, this will never throw a TypeError
+safe_add_to_body(body, sketch)
+
+# Clear existing contents safely
+sketch.Geometry = []
+sketch.Constraints = []
+
+# Add 4 line segments for a rectangle
+width, height = 21.93, 15.60
+p1 = App.Vector(0, 0, 0)
+p2 = App.Vector(width, 0, 0)
+p3 = App.Vector(width, height, 0)
+p4 = App.Vector(0, height, 0)
+
+g1 = sketch.addGeometry(Part.LineSegment(p1, p2))
+g2 = sketch.addGeometry(Part.LineSegment(p2, p3))
+g3 = sketch.addGeometry(Part.LineSegment(p3, p4))
+g4 = sketch.addGeometry(Part.LineSegment(p4, p1))
+
+# Apply constraints
+sketch.addConstraint(Sketcher.Constraint("Coincident", 0, 2, 1, 1))
+sketch.addConstraint(Sketcher.Constraint("Coincident", 1, 2, 2, 1))
+sketch.addConstraint(Sketcher.Constraint("Coincident", 2, 2, 3, 1))
+sketch.addConstraint(Sketcher.Constraint("Coincident", 3, 2, 0, 1))
+
+sketch.addConstraint(Sketcher.Constraint("Horizontal", 0))
+sketch.addConstraint(Sketcher.Constraint("Vertical", 1))
+
+doc.recompute()
+
+
+
+# Guard document and body creation
+doc = App.ActiveDocument or App.newDocument("MicroProbe")
+body = doc.getObject("Body") or doc.addObject("PartDesign::Body", "Body")
+
 # Create sketch on document, then retrieve its actual object reference
 sketch = doc.getObject("TopView") or doc.addObject("Sketcher::SketchObject", "TopView")
 if sketch not in body.Group:
