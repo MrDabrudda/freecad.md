@@ -14,8 +14,9 @@
 
 ## Code Formatting & Syntax Rules
 - STRICTLY format Python code with consistent 4-space indentation across all lines.
-- NEVER leave random leading spaces on variable assignments (e.g., ` g2 = ...` will cause `IndentationError: unexpected indent`).
-- Always check that consecutive statements in the root scope or within blocks align flush to the active indentation level before passing to `execute_code`.
+- NEVER allow leading whitespace (single or multiple spaces) on top-level module statements (e.g., ` g2 = ...` causes `IndentationError: unexpected indent`).
+- All module-level statements MUST start flush at column 0 (`margin-left: 0`).
+- Validate script strings prior to passing them to `execute_code` to ensure consecutive top-level statements share exact zero-indentation alignment.
 
 ## RPC & Execution Safety Protocol
 - ALWAYS use `get_rpc_status` if a GUI-thread operation fails, hangs, or returns `GUI_DISPATCH_STUCK`.
@@ -48,8 +49,9 @@
   - FORBIDDEN: `body.addObject("Type", "Name")` (will throw `TypeError: function takes exactly 1 argument (2 given)`).
 
 ## Headless & GUI Constraints
-- NEVER access GUI properties or view attributes on document objects (e.g., `sketch.SketcherGui` will throw `AttributeError`).
+- NEVER access or assign GUI properties or view attributes on document objects (e.g., `sketch.SketcherGui` throws `AttributeError: 'Sketcher.SketchObject' object has no attribute 'SketcherGui'`).
 - Keep code strictly within headless document contexts (`FreeCAD` / `App`, `Part`, `Sketcher`).
+- NEVER attempt to toggle sketch edit modes or access GUI wrappers over RPC (e.g., `Gui.ActiveDocument.setEdit(...)` or `sketch.ViewObject`).
 - NEVER call `sketch.setOrigin()` (`Sketcher.SketchObject` has no such method; modify `sketch.Placement` directly if needed).
 
 ## Sketch Geometry
