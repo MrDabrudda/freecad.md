@@ -27,9 +27,11 @@
 
 ## Object Instantiation & Imports
 - NEVER import `Body` or `Sketch` directly from `PartDesign` (e.g., `from PartDesign import Body` will fail).
-- ALWAYS guard document and body retrieval to prevent `NoneType` attribute errors when running over RPC:
+- NEVER assume `App.ActiveDocument` exists or is non-null. Accessing `App.ActiveDocument.getObject(...)` without a fallback causes `AttributeError: 'NoneType' object has no attribute 'getObject'`.
+- ALWAYS guard document and object retrieval to handle null document states safely when running over RPC:
   doc = App.ActiveDocument or App.newDocument("MicroProbe")
   body = doc.getObject("Body") or doc.addObject("PartDesign::Body", "Body")
+  sketch = doc.getObject("TopView") or doc.addObject("Sketcher::SketchObject", "TopView")
 - ALWAYS use string-based class names with `doc.addObject()`:
   - Body: `body = doc.addObject("PartDesign::Body", "Body")`
   - Sketch: `sketch = doc.addObject("Sketcher::SketchObject", "Sketch")`
