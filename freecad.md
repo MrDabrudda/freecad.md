@@ -29,12 +29,18 @@
   - Sketch: `sketch = doc.addObject("Sketcher::SketchObject", "Sketch")`
 - NEVER pass class constructors like `Sketcher.SketchObject()` into `addObject()`.
 - ALWAYS create objects on `doc` first using `doc.addObject("Type", "Name")`, then attach them to the body using `body.addObject(sketch)`.
+
+## PartDesign::Body Group & Property Rules
+- NEVER assign strings, dicts, or raw text names directly to `body.Group`. 
+  - `body.Group` accepts ONLY a list of valid `App.DocumentObject` instances (or `None`).
+  - FORBIDDEN: `body.Group = [{'name': 'Sketch'}]` or `body.Group = ['Sketch']` (will throw `Property 'Group' assignment error: Type must be App.DocumentObject or None`).
+  - CORRECT: `body.Group = [sketch]` or `body.addObject(sketch)`.
+- NEVER attempt to assign to `body.Objects` or `body.ObjectList`.
+  - `PartDesign::Body` objects do NOT possess `Objects` or `ObjectList` attributes (will throw `AttributeError: 'PartDesign.Body' object has no attribute 'Objects'`).
 - `body.addObject` is a Python METHOD, not a writable property or multi-argument constructor:
   - CORRECT: `body.addObject(sketch)` (takes exactly 1 argument)
   - FORBIDDEN: `body.addObject("Type", "Name")` (will throw `TypeError: function takes exactly 1 argument (2 given)`)
   - FORBIDDEN: `body.addObject = sketch` or `body.addObjects = ...` (will throw `attribute is read-only`)
-  - FORBIDDEN: `body.Objects = [sketch]` (will throw `attribute 'Objects' does not exist`)
-- `body.addObjects([sketch])` requires a LIST argument `[...]`. Passing a single object without brackets (e.g., `body.addObjects(sketch)`) will throw `TypeError: type must be list`.
 
 ## Headless & GUI Constraints
 - NEVER access GUI properties or view attributes on document objects (e.g., `sketch.SketcherGui` will throw `AttributeError`).
@@ -62,12 +68,21 @@
   - OpenCASCADE underlying kernel will raise `OCCError: Both points are equal`.
   - Check variable calculations to ensure start point `Vector(x1, y1, z1)` does not equal end point `Vector(x2, y2, z2)`.
 
-## Constraints
+## Constraints & Malformed Constraint Prevention
 - `sketch.addConstraint()` accepts ONLY a single `Sketcher.Constraint` object.
-- NEVER use class attributes like `Sketcher.ConstraintCoincident` or pass positional parameters directly to `addConstraint()`.
-- ALWAYS pass a string constraint type into `Sketcher.Constraint()`:
-  - `sketch.addConstraint(Sketcher.Constraint("Coincident", 0, 2, 1, 1))`
-  - `sketch.addConstraint(Sketcher.Constraint("DistanceX", 0, 1, 150.0))`
+- NEVER pass wrong point/edge index arguments to `Sketcher.Constraint()`. Malformed constraint signatures cause `Sketcher constraint number X is malformed!` errors.
+- Point Pos Enums for `Coincident` / `Distance` / `PointOnObject`:
+  - `1`: StartPoint
+  - `2`: EndPoint
+  - `3`: Center
+- Standard Constraint Signatures:
+  - **Coincident (2 Vertices):** `Sketcher.Constraint("Coincident", Geo1, PointPos1, Geo2, PointPos2)`
+    - Example: `Sketcher.Constraint("Coincident", 0, 2, 1, 1)` (Geo 0 End -> Geo 1 Start)
+  - **Horizontal / Vertical (Line):** `Sketcher.Constraint("Horizontal", GeoIndex)`
+  - **DistanceX / DistanceY (Single Line):** `Sketcher.Constraint("DistanceX", GeoIndex, LengthValue)`
+  - **Distance / Diameter / Radius (Circle/Line):** `Sketcher.Constraint("Radius", GeoIndex, RadiusValue)`
+  - **Distance Between 2 Points:** `Sketcher.Constraint("Distance", Geo1, PointPos1, Geo2, PointPos2, DistanceValue)`
+- NEVER use 0 or negative values as a datum for distance, radius, or diameter constraints.
 
 ## Sketch Verification & Inspection
 - ALWAYS call `doc.recompute()` after adding geometry via `freecad-mcp`. Do NOT use `App.ActiveDocument.recompute()` if `doc` is already defined.
@@ -87,7 +102,7 @@ doc = App.ActiveDocument or App.newDocument("MicroProbe")
 body = doc.getObject("Body") or doc.addObject("PartDesign::Body", "Body")
 
 # Create sketch on document, then add to body
-sketch = doc.getObject("Sketch") or doc.addObject("Sketcher::SketchObject", "Sketch")
+sketch = doc.getObject("TopView") or doc.addObject("Sketcher::SketchObject", "TopView")
 if sketch not in body.Group:
     body.addObject(sketch)
 
@@ -102,12 +117,18 @@ p2 = App.Vector(width, 0, 0)
 p3 = App.Vector(width, height, 0)
 p4 = App.Vector(0, height, 0)
 
-sketch.addGeometry(Part.LineSegment(p1, p2))
-sketch.addGeometry(Part.LineSegment(p2, p3))
-sketch.addGeometry(Part.LineSegment(p3, p4))
-sketch.addGeometry(Part.LineSegment(p4, p1))
+g1 = sketch.addGeometry(Part.LineSegment(p1, p2)) # Geo 0
+g2 = sketch.addGeometry(Part.LineSegment(p2, p3)) # Geo 1
+g3 = sketch.addGeometry(Part.LineSegment(p3, p4)) # Geo 2
+g4 = sketch.addGeometry(Part.LineSegment(p4, p1)) # Geo 3
 
-# Add circle geometry (must use 3D normal vector)
-sketch.addGeometry(Part.Circle(App.Vector(2.5, 3.9, 0), App.Vector(0, 0, 1), 2.7))
+# Apply valid constraints without malformed index parameters
+sketch.addConstraint(Sketcher.Constraint("Coincident", 0, 2, 1, 1))
+sketch.addConstraint(Sketcher.Constraint("Coincident", 1, 2, 2, 1))
+sketch.addConstraint(Sketcher.Constraint("Coincident", 2, 2, 3, 1))
+sketch.addConstraint(Sketcher.Constraint("Coincident", 3, 2, 0, 1))
+
+sketch.addConstraint(Sketcher.Constraint("Horizontal", 0))
+sketch.addConstraint(Sketcher.Constraint("Vertical", 1))
 
 doc.recompute()
