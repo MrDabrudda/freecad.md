@@ -36,14 +36,22 @@
   - Body: `body = doc.addObject("PartDesign::Body", "Body")`
   - Sketch: `sketch = doc.addObject("Sketcher::SketchObject", "Sketch")`
 - NEVER pass class constructors like `Sketcher.SketchObject()` into `addObject()`.
-- ALWAYS create objects on `doc` first using `doc.addObject("Type", "Name")`, then attach them to the body using `body.addObject(sketch)`.
+- NEVER use shorthand or direct property setting for linking elements to containers. 
+- ALWAYS use explicit method invocation `body.addObject(sketch)` or check membership with resolved object references.
 
-## PartDesign::Body Group & Property Rules
-- NEVER assign dictionaries, string names, or text representations to `body.Group`.
-  - `body.Group` strictly expects a Python list of `App.DocumentObject` instances.
-  - FORBIDDEN: `body.Group = [{'name': 'TopView'}]` or `body.Group = [{'TopView': sketch}]` (causes `Property 'Group' assignment error: Type must be App.DocumentObject or None, not dict`).
-  - FORBIDDEN: `body.Group = ['TopView']` or `body.Group = 'TopView'` (causes `Property 'Group' assignment error: Type must be App.DocumentObject or None, not str`).
-  - CORRECT: `body.addObject(sketch)` or `body.Group = [sketch]` (where `sketch` is the object variable returned by `doc.addObject` or `doc.getObject`).
+## PartDesign::Body Group & Property Rules (STRICT ENFORCEMENT)
+- NEVER assign raw text strings or lists of strings to `body.Group`. 
+- **CRITICAL LLM FAILURE MODE PREVENTION:** LLMs frequently attempt to manipulate container memberships using assignment syntax like `body.Group = [...]` or pass strings/dicts. This is **strictly prohibited**.
+- `body.Group` is an internal container property managed exclusively via the `.addObject()` method or explicit object references.
+  - FORBIDDEN: `body.Group = ["TopView"]`
+  - FORBIDDEN: `body.Group = "TopView"`
+  - FORBIDDEN: `body.Group = [doc.getObject("TopView")]` (Direct list assignment to `.Group` is prone to triggering type translation errors in headless RPC bindings).
+  - **MANDATORY PATTERN:** Use the method call exclusively to append elements:
+    ```python
+    sketch = doc.getObject("TopView") or doc.addObject("Sketcher::SketchObject", "TopView")
+    if sketch not in body.Group:
+        body.addObject(sketch)
+    ```
 - NEVER attempt to assign to `body.Objects` or `body.ObjectList`.
   - `PartDesign::Body` objects do NOT possess `Objects` or `ObjectList` attributes.
 - `body.addObject` is a Python METHOD, not a writable property or multi-argument constructor:
@@ -110,7 +118,7 @@ import Sketcher
 doc = App.ActiveDocument or App.newDocument("MicroProbe")
 body = doc.getObject("Body") or doc.addObject("PartDesign::Body", "Body")
 
-# Create sketch on document, then attach to body using the object reference
+# Create sketch on document, then retrieve its actual object reference
 sketch = doc.getObject("TopView") or doc.addObject("Sketcher::SketchObject", "TopView")
 if sketch not in body.Group:
     body.addObject(sketch)
