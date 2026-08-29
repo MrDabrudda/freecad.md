@@ -1,0 +1,16 @@
+node_modules
+package.json
+package-lock.json
+pnpm-lock.yaml
+bun.lock
+yarn.lock
+.gitignore
+agent-manager.json
+
+!/.kilo/rules
+
+# Ignore all subdirectories in the Prints root
+/*/
+
+# Ignore all subdirectories everywhere under Prints
+# **/
